@@ -4,16 +4,24 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class PlayerController : MonoBehaviour {
+public class FighterController : MonoBehaviour {
   private float MAX_COMBO_GRACE_PERIOD = 0.5f;
 
   private Rigidbody _rigidbody;
 
   private Animator _animator;
 
+  private AttackColliderController _attackColliderController;
+
+  [SerializeField] private int _hitPoints;
+  
   [SerializeField] private float _moveSpeed;
 
   [SerializeField] private float _jumpForce;
+
+  [SerializeField] private float _hitForce;
+
+  [SerializeField] private float _koForce;
 
   private Vector2 _previousMove;
 
@@ -49,6 +57,10 @@ public class PlayerController : MonoBehaviour {
 
   private bool _isAttacking;
 
+  private bool _isHit;
+
+  private bool _isKOed;
+
   private int _comboNumber;
 
   private DateTime _lastAttackTimestamp;
@@ -56,6 +68,7 @@ public class PlayerController : MonoBehaviour {
   void Start() {
     _rigidbody = GetComponent<Rigidbody>();
     _animator = GetComponent<Animator>();
+    _attackColliderController = GetComponent<AttackColliderController>();
     _comboNumber = 1;
     _lastAttackTimestamp = System.DateTime.Now;
   }
@@ -99,16 +112,40 @@ public class PlayerController : MonoBehaviour {
   }
 
   private void AnimatePlayer() {
-    if (_isAttacking) {
+    if (_isKOed) {
+      if (_isMovingLeft) {
+        _animator.Play("KO Left");
+      } else if (_isMovingRight) {
+        _animator.Play("KO Right");
+      } else if (_wasMovingLeft) {
+        _animator.Play("KO Left");
+      } else {
+        _animator.Play("KO Right");
+      }
+    } else if (_isHit) {
+      if (_isMovingLeft) {
+        _animator.Play("Hit Left");
+      } else if (_isMovingRight) {
+        _animator.Play("Hit Right");
+      } else if (_wasMovingLeft) {
+        _animator.Play("Hit Left");
+      } else {
+        _animator.Play("Hit Right");
+      }
+    } else if (_isAttacking) {
       if (_isJumping) {
         if (_isMovingLeft) {
           _animator.Play("Jump Kick Run Left");
+          _attackColliderController.EnableLeftRunningJumpKickCollider();
         } else if (_isMovingRight) {
           _animator.Play("Jump Kick Run Right");
+          _attackColliderController.EnableRightRunningJumpKickCollider();
         } else if (_wasMovingLeft) {
           _animator.Play("Jump Kick Stationary Left");
+          _attackColliderController.EnableLeftStandingJumpKickCollider();
         } else {
           _animator.Play("Jump Kick Stationary Right");
+          _attackColliderController.EnableRightStandingJumpKickCollider();
         }
       } else if (_isMovingLeft) {
         _animator.Play(string.Format("Punch {0} Left", _comboNumber));
@@ -152,10 +189,10 @@ public class PlayerController : MonoBehaviour {
     }
   }
 
-  public void OnMove(InputAction.CallbackContext context) {
+  protected void Move(Vector2 currentMove) {
     if (CanMove()) {
       _previousMove = _currentMove;
-      _currentMove = context.ReadValue<Vector2>();
+      _currentMove = currentMove;
     }
   }
 
@@ -163,8 +200,8 @@ public class PlayerController : MonoBehaviour {
     return !_isAttacking && !_isJumping && !_hasLanded;
   }
 
-  public void OnJump(InputAction.CallbackContext context) {
-    if (!_isJumping && !_hasLanded && context.started) {
+  protected void Jump() {
+    if (!_isJumping && !_hasLanded) {
       if (IsOnLastComboAttack() || IsInFirstHalfOfAttackAnimation()) {
         return;
       }
@@ -175,14 +212,14 @@ public class PlayerController : MonoBehaviour {
     }
   }
 
-  public void OnAttack(InputAction.CallbackContext context) {
-    if (!_isJumping) {
-      _currentMove = new Vector2();
-    }
-
-    if (CanAttack() && context.started) {
+  protected void Attack() {
+    if (CanAttack()) {
       if (IsOnLastComboAttack() || IsInFirstHalfOfAttackAnimation()) {
         return;
+      }
+
+      if (!_isJumping) {
+        _currentMove = new Vector2();
       }
 
       _isAttacking = true;
@@ -207,6 +244,10 @@ public class PlayerController : MonoBehaviour {
     _isAttacking = false;
   }
 
+  public void OnHitEnd() {
+    _isHit = false;
+  }
+
   private bool IsInFirstHalfOfAttackAnimation() {
     return _isAttacking && _animator.GetCurrentAnimatorStateInfo(0).normalizedTime < 0.5f;
   }
@@ -216,13 +257,47 @@ public class PlayerController : MonoBehaviour {
   }
 
   public void OnCollisionEnter(Collision collision) {
-    _currentMove = new Vector2();
-    _isJumping = false;
-    _isAttacking = false;
-    StartCoroutine(LandJump());
+    if (collision.gameObject.name == "Floor" && !_isHit) {
+      _currentMove = new Vector2();
+      _isJumping = false;
+      _isAttacking = false;
+      StartCoroutine(LandJump());
+    }
+  }
+
+  public void OnTriggerEnter(Collider collider) {
+    if (!_isAttacking && collider.gameObject != gameObject && collider.gameObject.name != "Floor") {
+      Transform parent = collider.gameObject.transform.parent;
+      if (parent != null) {
+        _isHit = true;
+        _hitPoints -= 1;
+        if (_hitPoints <= 0) {
+          _isKOed = true;
+        }
+
+        Vector3 vector = collider.gameObject.transform.position - gameObject.transform.position;
+        float x = vector.x < 0 ? 1 : -1;
+        _currentMove = new Vector2();
+        _previousMove = new Vector2(-x, 0);
+
+        float force = _isKOed ? _koForce : _hitForce;
+        _rigidbody.AddForce(new Vector3(x * force, 0, 0), ForceMode.Impulse);
+      }
+    }
+  }
+
+  public void OnTriggerExit(Collider collider) {
+    if (collider.gameObject != gameObject) {
+      Debug.Log("Trigger Exit!");
+    }
   }
 
   private IEnumerator LandJump() {
+    _attackColliderController.DisableLeftStandingJumpKickCollider();
+    _attackColliderController.DisableRightStandingJumpKickCollider();
+    _attackColliderController.DisableLeftRunningJumpKickCollider();
+    _attackColliderController.DisableRightRunningJumpKickCollider();
+
     _hasLanded = true;
     yield return new WaitForSeconds(0.1f);
     _hasLanded = false;
