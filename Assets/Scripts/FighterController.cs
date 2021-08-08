@@ -71,9 +71,14 @@ public class FighterController : MonoBehaviour {
     _attackColliderController = GetComponent<AttackColliderController>();
     _comboNumber = 1;
     _lastAttackTimestamp = System.DateTime.Now;
+    OnStart();
   }
 
+  protected virtual void OnStart() {}
+
   void Update() {
+    OnUpdate();
+
     if (AnimatingLanding()) {
       return;
     }
@@ -84,6 +89,8 @@ public class FighterController : MonoBehaviour {
 
     AnimatePlayer();
   }
+
+  protected virtual void OnUpdate() {}
 
   private bool AnimatingLanding() {
     if (_hasLanded) {
@@ -197,11 +204,11 @@ public class FighterController : MonoBehaviour {
   }
 
   private bool CanMove() {
-    return !_isAttacking && !_isJumping && !_hasLanded;
+    return !_isAttacking && !_isJumping && !_hasLanded && !_isHit && !_isKOed;
   }
 
   protected void Jump() {
-    if (!_isJumping && !_hasLanded) {
+    if (CanJump()) {
       if (IsOnLastComboAttack() || IsInFirstHalfOfAttackAnimation()) {
         return;
       }
@@ -210,6 +217,10 @@ public class FighterController : MonoBehaviour {
       _isJumping = true;
       _rigidbody.AddForce(Vector3.up * _jumpForce);
     }
+  }
+
+  private bool CanJump() {
+    return !_isAttacking && !_isJumping && !_hasLanded && !_isHit && !_isKOed;
   }
 
   protected void Attack() {
@@ -237,7 +248,7 @@ public class FighterController : MonoBehaviour {
   }
 
   private bool CanAttack() {
-    return !_hasLanded;
+    return !_hasLanded && !_isHit && !_isKOed;
   }
 
   public void OnAttackEnd() {
@@ -257,7 +268,7 @@ public class FighterController : MonoBehaviour {
   }
 
   public void OnCollisionEnter(Collision collision) {
-    if (collision.gameObject.name == "Floor" && !_isHit) {
+    if (collision.gameObject.name == "Floor") {
       _currentMove = new Vector2();
       _isJumping = false;
       _isAttacking = false;
@@ -266,10 +277,12 @@ public class FighterController : MonoBehaviour {
   }
 
   public void OnTriggerEnter(Collider collider) {
-    if (!_isAttacking && collider.gameObject != gameObject && collider.gameObject.name != "Floor") {
+    if (collider.gameObject != gameObject && collider.gameObject.name != "Floor") {
       Transform parent = collider.gameObject.transform.parent;
       if (parent != null) {
         _isHit = true;
+        OnAttackEnd();
+        _attackColliderController.DisableAllColliders();
         _hitPoints -= 1;
         if (_hitPoints <= 0) {
           _isKOed = true;
@@ -288,7 +301,6 @@ public class FighterController : MonoBehaviour {
 
   public void OnTriggerExit(Collider collider) {
     if (collider.gameObject != gameObject) {
-      Debug.Log("Trigger Exit!");
     }
   }
 

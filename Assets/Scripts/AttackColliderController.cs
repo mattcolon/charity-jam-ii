@@ -67,6 +67,17 @@ public class AttackColliderController : MonoBehaviour {
     SetColliderEnablement("Right Running Jump Kick Collider", false);
   }
 
+  public void DisableAllColliders() {
+    DisableLeftPunchCollider();
+    DisableLeftKickCollider();
+    DisableLeftStandingJumpKickCollider();
+    DisableLeftRunningJumpKickCollider();
+    DisableRightPunchCollider();
+    DisableRightKickCollider();
+    DisableRightStandingJumpKickCollider();
+    DisableRightRunningJumpKickCollider();
+  }
+
   private void SetColliderEnablement(string name, bool enabled) {
     gameObject.transform.Find(name).GetComponent<Collider>().enabled = enabled;
   }

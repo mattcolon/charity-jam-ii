@@ -5,6 +5,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class PlayerController : FighterController {
+  protected override void OnStart() {}
+
   public void OnMove(InputAction.CallbackContext context) {
     Move(context.ReadValue<Vector2>());
   }
