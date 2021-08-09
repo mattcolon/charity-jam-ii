@@ -28,6 +28,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: Enemy Variant
       objectReference: {fileID: 0}
+    - target: {fileID: 9154421941921965082, guid: e1c7c62622425a14f9264221391e9e52, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 1175795489875228318, guid: 4da3d66e88adef843afd62f4c06f0c88, type: 3}
+    - target: {fileID: 9154421941921965083, guid: e1c7c62622425a14f9264221391e9e52, type: 3}
+      propertyPath: m_Controller
+      value: 
+      objectReference: {fileID: 9100000, guid: 9192d0e422b2aa14aae7694153c69861, type: 2}
     - target: {fileID: 9154421941921965085, guid: e1c7c62622425a14f9264221391e9e52, type: 3}
       propertyPath: m_RootOrder
       value: 0

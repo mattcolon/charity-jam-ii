@@ -44,10 +44,10 @@ public class EnemyController : FighterController {
         _allowedToAttack = false;
         StartCoroutine(PauseAttacking());
       }
-    } else if (!_isAttackingFromGround && _vectorToPlayer.magnitude < 20 && _currentState != State.Jumping && _currentState != State.Attacking) {
-      _currentState = State.Jumping;
-      Jump();
-      Attack();
+    // } else if (!_isAttackingFromGround && _vectorToPlayer.magnitude < 20 && _currentState != State.Jumping && _currentState != State.Attacking) {
+    //   _currentState = State.Jumping;
+    //   Jump();
+    //   Attack();
     } else {
       _currentState = State.Moving;
       Move(_vectorToPlayer.normalized);

@@ -7,6 +7,8 @@ using UnityEngine.InputSystem;
 public class FighterController : MonoBehaviour {
   private float MAX_COMBO_GRACE_PERIOD = 0.5f;
 
+  private float MAX_MOVEMENT_VALUE = 73f;
+
   private Rigidbody _rigidbody;
 
   private Animator _animator;
@@ -83,11 +85,24 @@ public class FighterController : MonoBehaviour {
       return;
     }
 
-    if (!(_isAttacking && !_isJumping)) {
-      MovePlayer();
-    }
+    // if (!(_isAttacking && !_isJumping)) {
+    //   MovePlayer();
+    // }
 
     AnimatePlayer();
+  }
+
+  void FixedUpdate() {
+    if (!(_isAttacking && !_isJumping)) {
+      MovePlayer();
+      Vector3 newPosition = _rigidbody.position;
+      if (newPosition.x > MAX_MOVEMENT_VALUE) newPosition.x = MAX_MOVEMENT_VALUE;
+      if (newPosition.x < -MAX_MOVEMENT_VALUE) newPosition.x = -MAX_MOVEMENT_VALUE;
+      if (newPosition.y < 0) newPosition.y = 0;
+      if (newPosition.z > MAX_MOVEMENT_VALUE) newPosition.z = MAX_MOVEMENT_VALUE;
+      if (newPosition.z < -MAX_MOVEMENT_VALUE) newPosition.z = -MAX_MOVEMENT_VALUE;
+      _rigidbody.MovePosition(newPosition);
+    }
   }
 
   protected virtual void OnUpdate() {}
@@ -115,7 +130,9 @@ public class FighterController : MonoBehaviour {
     );
 
     Vector3 moveThisFrame = Time.deltaTime * moveVelocity;
-    transform.position += moveThisFrame;
+    Vector3 newPosition = transform.position + moveThisFrame;
+    _rigidbody.MovePosition(newPosition);
+
   }
 
   private void AnimatePlayer() {
@@ -277,12 +294,21 @@ public class FighterController : MonoBehaviour {
   }
 
   public void OnTriggerEnter(Collider collider) {
-    if (collider.gameObject != gameObject && collider.gameObject.name != "Floor") {
+    if (collider.gameObject != gameObject &&
+        // collider.gameObject.transform.parent != null &&
+        // collider.gameObject.name != "Floor" &&
+        // collider.gameObject.name != "Collect Deposit Collider" &&
+        // !collider.gameObject.name.StartsWith("Teddy")) {
+        collider.gameObject.transform.parent != null &&
+        (collider.gameObject.transform.parent.name.StartsWith("Enemy") ||
+         (collider.gameObject.transform.parent.name == "Player" &&
+          collider.gameObject.name != "Collect Deposit Collider") &&
+          !collider.gameObject.name.StartsWith("Teddy"))) {
+            Debug.Log("What did I hit? " + collider.gameObject.name);
       Transform parent = collider.gameObject.transform.parent;
       if (parent != null) {
         _isHit = true;
         OnAttackEnd();
-        _attackColliderController.DisableAllColliders();
         _hitPoints -= 1;
         if (_hitPoints <= 0) {
           _isKOed = true;
@@ -295,9 +321,13 @@ public class FighterController : MonoBehaviour {
 
         float force = _isKOed ? _koForce : _hitForce;
         _rigidbody.AddForce(new Vector3(x * force, 0, 0), ForceMode.Impulse);
+        _attackColliderController.DisableAllColliders();
+        OnHit();
       }
     }
   }
+
+  protected virtual void OnHit() {}
 
   public void OnTriggerExit(Collider collider) {
     if (collider.gameObject != gameObject) {
